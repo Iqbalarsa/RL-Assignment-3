@@ -35,7 +35,7 @@ def train():
         num_actions = env.action_space.n
             
         # Networks    
-        policy = Policy(num_states, num_actions, 64).to(device)
+        policy = Policy(num_states, num_actions, 1, 64).to(device)
         optimizer = torch.optim.Adam(policy.parameters(), lr = 0.001)
 
         
