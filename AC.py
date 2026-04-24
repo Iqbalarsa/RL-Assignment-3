@@ -13,7 +13,7 @@ RUNS_DIR = 'runs'
 os.makedirs(RUNS_DIR, exist_ok=True)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-max_steps = 50_000
+max_steps = 1_000_000
 num_runs = 5
 gamma = 0.9
 
