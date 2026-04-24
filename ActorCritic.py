@@ -13,14 +13,14 @@ RUNS_DIR = 'runs'
 os.makedirs(RUNS_DIR, exist_ok=True)
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-max_steps = 1_000_000
-num_runs = 3
+max_steps = 50_000
+num_runs = 5
 gamma = 0.9
 
  # Paths to run info
-MODEL_FILE = os.path.join(RUNS_DIR, 'AC_model.pt')
-LOG_FILE = os.path.join(RUNS_DIR, 'AC_training.log')
-GRAPH_FILE = os.path.join(RUNS_DIR, 'AC_graph.png')
+MODEL_FILE = os.path.join(RUNS_DIR, 'b_AC_model.pt')
+LOG_FILE = os.path.join(RUNS_DIR, 'b_AC_training.log')
+GRAPH_FILE = os.path.join(RUNS_DIR, 'b_AC_graph.png')
 
 def train():
     all_runs_reward = []
@@ -34,58 +34,60 @@ def train():
         num_states = env.observation_space.shape[0]
         num_actions = env.action_space.n
             
-        # Networks    
-        policy = Policy(num_states, num_actions, 64).to(device)
-        optimizer = torch.optim.Adam(policy.parameters(), lr = 0.001)
+        # Networks
+        policy = Policy(num_states, num_actions, critic_dim=num_actions, hidden_dim1=64).to(device)
+        optimizer = torch.optim.Adam(policy.parameters(), lr = 0.0001)
 
-        
         global_step = 0
         episode = 0
         rewards_per_episode = []
         steps_per_episode = []
         
         while global_step < max_steps:
-            rewards = []
             terminated = False
             truncated = False
             episode_reward = 0
             
             state, _ = env.reset()
-                
-            while not(terminated or truncated) and global_step < max_steps:
-                
-                state_t = torch.from_numpy(state).float().unsqueeze(0).to(device)
-                probs, state_value = policy(state_t)
-                
+            
+            state_t = torch.from_numpy(state).float().unsqueeze(0).to(device)
+            
+            with torch.no_grad():
+                probs, _ = policy(state_t)
                 m = torch.distributions.Categorical(probs)
                 action = m.sample()
                 
-                # Take step
+            while not (terminated or truncated) and global_step < max_steps:
+                
+                state_t = torch.from_numpy(state).float().unsqueeze(0).to(device)
+                probs, q_values = policy(state_t) 
+                m = torch.distributions.Categorical(probs)
+                
                 new_state, reward, terminated, truncated, _ = env.step(action.item())
                 done = terminated or truncated
                 
-                # Get the V(s') for next step
                 new_state_t = torch.from_numpy(new_state).float().unsqueeze(0).to(device)
-                new_probs, new_state_value = policy(new_state_t)
+                new_probs, new_q_values = policy(new_state_t)
                 
-                # Optimize for every step
-                optimize(optimizer, m.log_prob(action), state_value, new_state_value, reward, done, gamma)
                 
+                next_m = torch.distributions.Categorical(new_probs)
+                next_action = next_m.sample()
+                
+                # Optimize
+                optimize(optimizer, m, action, q_values, 
+                         new_q_values, next_action.item(), reward, done, gamma)
+                
+
                 state = new_state
-                rewards.append(reward)
-                episode_reward += reward
-        
-                global_step += 1
+                action = next_action.detach()
                 
+                episode_reward += reward
+                global_step += 1
                 
             # Episode finished
             rewards_per_episode.append(episode_reward)
             steps_per_episode.append(global_step)
             episode += 1
-            
-            # if episode_reward > best_reward:
-            #         best_reward = episode_reward
-            #         torch.save(policy.state_dict(), self.MODEL_FILE)
 
             if episode % 100 == 0:
                 print(f'Run {run_number+1} | Ep {episode} | Steps {global_step}/{max_steps} | Last score: {episode_reward}')
@@ -97,20 +99,20 @@ def train():
     _save_graph(all_runs_reward, all_runs_steps)
                 
     
-def optimize(optimizer, log_prob, state_value, next_state_value, reward, done, gamma):
+def optimize(optimizer, m, action_tensor, q_values, next_q_values, next_action_idx, reward, done, gamma):
     
-    target = reward + (gamma * next_state_value.detach() * (1 - int(done)))
+    log_prob = m.log_prob(action_tensor)
+    current_q_action = q_values[0, action_tensor]
     
-    # TD error
-    td_error = target - state_value
+    next_q_next_action = next_q_values[0, next_action_idx].detach()
     
-    # Actor loss
-    actor_loss = -log_prob * td_error.detach()
+
+    target = reward + (gamma * next_q_next_action * (1 - int(done)))
+
+    actor_loss = -log_prob * current_q_action.detach()
+
+    critic_loss = F.mse_loss(current_q_action, target.view_as(current_q_action))
     
-    # Critic Loss
-    critic_loss = F.mse_loss(state_value, target)
-    
-    # Total Loss
     loss = actor_loss + critic_loss
     
     optimizer.zero_grad()
@@ -154,9 +156,9 @@ def _save_graph(all_runs_reward, all_runs_steps):
     plot.save(GRAPH_FILE)
 
     # Save both reward and step data
-    reward_file = os.path.join(RUNS_DIR, 'AC_data.npy')
+    reward_file = os.path.join(RUNS_DIR, 'AC_v2_data.npy')
     np.save(reward_file, padded_rewards)
-    step_file = os.path.join(RUNS_DIR, 'AC_steps.npy')
+    step_file = os.path.join(RUNS_DIR, 'AC_v2_steps.npy')
     np.save(step_file, padded_steps)
     print(f'Reward data saved to {reward_file}')
     print(f'Step data saved to {step_file}')
