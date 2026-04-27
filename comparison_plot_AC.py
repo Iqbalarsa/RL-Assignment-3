@@ -48,7 +48,7 @@ def plot_policy_gradient_comparison(grid_step=1000, smooth_window=101, baseline_
         'AC (1 layer, gamma=0.99, lr=0.001)':      'AC_1layer_g099_lr001',
         'AC (1 layer, gamma=0.90, lr=0.001)':      'AC_1layer_g09_lr001',
         'AC (1 layer, gamma=0.99, lr=0.0001)':   'AC_1layer_g099_lr0001',
-        'AC (2 layer, gamma=0.99, lr=0.0001)':   'AC_1layer_g09_lr0001',}
+        'AC (2 layer, gamma=0.99, lr=0.0001)':   'AC_2layer_g099_lr0001',}
 
     colors = {
         'AC (1 layer, gamma=0.99, lr=0.001)':      'tab:green',
