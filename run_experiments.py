@@ -28,7 +28,7 @@ def make_policy_class(hidden_dims, critic_dim):
     return FlexiblePolicy
 
 import Reinforce
-import ActorCritic as AC
+import AC
 import A2C
 
 RUNS_DIR = 'runs'
