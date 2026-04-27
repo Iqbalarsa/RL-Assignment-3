@@ -7,7 +7,7 @@ This repository contains the implementation and comparative analysis of three fu
 ### Core Algorithms
 
 * `Reinforce.py`: Implementation of Monte Carlo Policy Gradient
-* `ActorCritic.py`: Implementation of 1-step Actor-Critic
+* `Ac.py`: Implementation of 1-step Actor-Critic
 * `A2C.py`: Implementation of Advantage Actor-Critic with Monte Carlo estimates
 
 ### Scripts & Utilities
